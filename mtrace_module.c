@@ -1,0 +1,113 @@
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/kprobes.h>
+#include <linux/moduleparam.h>
+
+#include "strerr.h"
+#include "mtrace.h"
+
+#define pr_mtrace(msg...) pr_info("[MTRACE] " msg)
+
+static int target_pid = -1;
+module_param(target_pid, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+
+static unsigned long (*lookup_name)(const char *name);
+
+static inline int lookup_init(void)
+{
+    struct kprobe kp = {
+        .symbol_name = "kallsyms_lookup_name",
+    };
+
+    if (register_kprobe(&kp) < 0)
+        return -EINVAL;
+    lookup_name = (unsigned long (*)(const char *name))kp.addr;
+    unregister_kprobe(&kp);
+    return 0;
+}
+
+static DEFINE_MTRACE_SUBSYSTEM(pgtable, 3,
+    MTRACE_SPECIFIC_INFO(
+        __field(unsigned long, flags)
+    ),
+    MTRACE_INFO("pgd_alloc"),
+    MTRACE_INFO("pmd_alloc"),
+    MTRACE_INFO("__pte_alloc")
+);
+
+static int pte_user_ret_handler(struct kretprobe_instance *ri, struct pt_regs *regs)
+{
+    unsigned long retval = regs_return_value(regs);
+    
+    if (!retval && (current->pid == target_pid))
+        atomic_add(4096, &MTRACE_SYSTEM(pgtable).table[2].byte_alloc);
+
+    return 0;
+}
+
+static struct kretprobe kp_pte_user;
+
+#define mtrace_subsystem_init(name)\
+        __mtrace_subsystem_init(&MTRACE_SYSTEM(name).table[0],\
+                ARRAY_SIZE(MTRACE_SYSTEM(name).table))
+static int __mtrace_subsystem_init(struct watchpoint_info *wp, size_t nr)
+{
+    size_t index;
+    int ret;
+    kp_pte_user.kp.symbol_name = MTRACE_SYSTEM(pgtable).table[2].func_name;
+    kp_pte_user.handler = pte_user_ret_handler;
+    kp_pte_user.maxactive = 2;
+
+    ret = register_kretprobe(&kp_pte_user);
+    if (ret < 0) {
+        pr_info("ERROR=\"%s\" cannot register %s\n", get_error(ret),
+                                MTRACE_SYSTEM(pgtable).table[2].func_name);
+        return -EINVAL;
+    }
+    pr_mtrace("kretprobe register %s pid=%d\n", MTRACE_SYSTEM(pgtable).table[2].func_name, target_pid);
+    return 0;
+}
+
+#define mtrace_subsystem_exit(name)\
+        __mtrace_subsystem_exit(&MTRACE_SYSTEM(name).table[0],\
+                ARRAY_SIZE(MTRACE_SYSTEM(name).table))
+static int __mtrace_subsystem_exit(struct watchpoint_info *wp, size_t nr)
+{
+    unregister_kretprobe(&kp_pte_user);
+    pr_mtrace("%d\n", atomic_read(&wp[2].byte_alloc));
+    pr_mtrace("kretprobe unregister\n");
+    return 0;
+}
+
+
+static int __init mtrace_init(void)
+{
+    size_t index;
+    struct watchpoint_info *wpp;
+
+    if (target_pid == -1)
+        return -1;
+
+    pr_info("array size %ld\n", ARRAY_SIZE(MTRACE_SYSTEM(pgtable).table));
+
+    for (wpp = &MTRACE_SYSTEM(pgtable).table[0], index = 0;
+         index < ARRAY_SIZE(MTRACE_SYSTEM(pgtable).table); ++index, wpp += 1)
+        pr_info("plain %s\n", wpp->func_name);
+
+    for_each_mtrace_wp(pgtable, wpp, index)
+        pr_mtrace("%s\n", wpp->func_name);
+    
+    mtrace_subsystem_init(pgtable);
+
+    return 0;
+}
+
+static void __exit mtrace_exit(void)
+{
+    mtrace_subsystem_exit(pgtable);
+}
+
+module_init(mtrace_init);
+module_exit(mtrace_exit);
+
+MODULE_LICENSE("GPL");

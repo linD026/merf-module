@@ -52,7 +52,6 @@ static struct kretprobe kp_pte_user;
                 ARRAY_SIZE(MTRACE_SYSTEM(name).table))
 static int __merf_subsystem_init(struct watchpoint_info *wp, size_t nr)
 {
-    size_t index;
     int ret;
     kp_pte_user.kp.symbol_name = MTRACE_SYSTEM(pgtable).table[2].func_name;
     kp_pte_user.handler = pte_user_ret_handler;

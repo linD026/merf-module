@@ -3,6 +3,6 @@ set -x
 make
 gcc -o fork fork.c
 ./fork &
-insmod mtrace_module.ko target_pid="$!"
+insmod merf_module.ko target_pid="$!"
 sleep 1
-rmmod mtrace_module
+rmmod merf_module

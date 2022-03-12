@@ -4,9 +4,9 @@
 #include <linux/moduleparam.h>
 
 #include "strerr.h"
-#include "mtrace.h"
+#include "merf.h"
 
-#define pr_mtrace(msg...) pr_info("[MTRACE] " msg)
+#define pr_merf(msg...) pr_info("[MTRACE] " msg)
 
 static int target_pid = -1;
 module_param(target_pid, int, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
@@ -47,10 +47,10 @@ static int pte_user_ret_handler(struct kretprobe_instance *ri, struct pt_regs *r
 
 static struct kretprobe kp_pte_user;
 
-#define mtrace_subsystem_init(name)\
-        __mtrace_subsystem_init(&MTRACE_SYSTEM(name).table[0],\
+#define merf_subsystem_init(name)\
+        __merf_subsystem_init(&MTRACE_SYSTEM(name).table[0],\
                 ARRAY_SIZE(MTRACE_SYSTEM(name).table))
-static int __mtrace_subsystem_init(struct watchpoint_info *wp, size_t nr)
+static int __merf_subsystem_init(struct watchpoint_info *wp, size_t nr)
 {
     size_t index;
     int ret;
@@ -64,23 +64,23 @@ static int __mtrace_subsystem_init(struct watchpoint_info *wp, size_t nr)
                                 MTRACE_SYSTEM(pgtable).table[2].func_name);
         return -EINVAL;
     }
-    pr_mtrace("kretprobe register %s pid=%d\n", MTRACE_SYSTEM(pgtable).table[2].func_name, target_pid);
+    pr_merf("kretprobe register %s pid=%d\n", MTRACE_SYSTEM(pgtable).table[2].func_name, target_pid);
     return 0;
 }
 
-#define mtrace_subsystem_exit(name)\
-        __mtrace_subsystem_exit(&MTRACE_SYSTEM(name).table[0],\
+#define merf_subsystem_exit(name)\
+        __merf_subsystem_exit(&MTRACE_SYSTEM(name).table[0],\
                 ARRAY_SIZE(MTRACE_SYSTEM(name).table))
-static int __mtrace_subsystem_exit(struct watchpoint_info *wp, size_t nr)
+static int __merf_subsystem_exit(struct watchpoint_info *wp, size_t nr)
 {
     unregister_kretprobe(&kp_pte_user);
-    pr_mtrace("%d\n", atomic_read(&wp[2].byte_alloc));
-    pr_mtrace("kretprobe unregister\n");
+    pr_merf("%d\n", atomic_read(&wp[2].byte_alloc));
+    pr_merf("kretprobe unregister\n");
     return 0;
 }
 
 
-static int __init mtrace_init(void)
+static int __init merf_init(void)
 {
     size_t index;
     struct watchpoint_info *wpp;
@@ -94,20 +94,20 @@ static int __init mtrace_init(void)
          index < ARRAY_SIZE(MTRACE_SYSTEM(pgtable).table); ++index, wpp += 1)
         pr_info("plain %s\n", wpp->func_name);
 
-    for_each_mtrace_wp(pgtable, wpp, index)
-        pr_mtrace("%s\n", wpp->func_name);
+    for_each_merf_wp(pgtable, wpp, index)
+        pr_merf("%s\n", wpp->func_name);
     
-    mtrace_subsystem_init(pgtable);
+    merf_subsystem_init(pgtable);
 
     return 0;
 }
 
-static void __exit mtrace_exit(void)
+static void __exit merf_exit(void)
 {
-    mtrace_subsystem_exit(pgtable);
+    merf_subsystem_exit(pgtable);
 }
 
-module_init(mtrace_init);
-module_exit(mtrace_exit);
+module_init(merf_init);
+module_exit(merf_exit);
 
 MODULE_LICENSE("GPL");

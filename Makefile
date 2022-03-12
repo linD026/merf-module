@@ -1,4 +1,4 @@
-obj-m += mtrace_module.o
+obj-m += merf_module.o
 
 PWD := $(CURDIR)
 

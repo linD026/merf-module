@@ -19,14 +19,14 @@ struct watchpoint_info {
     }
 
 #define DEFINE_MTRACE_SUBSYSTEM(subsystem, nr, specific_info, wpinfo...)       \
-    struct mtrace_##subsystem {                                                \
+    struct merf_##subsystem {                                                \
         specific_info;                                                         \
         struct watchpoint_info table[nr];                                      \
-    } mtrace_##subsystem = { .table = { wpinfo } }
+    } merf_##subsystem = { .table = { wpinfo } }
 
-#define MTRACE_SYSTEM(name) mtrace_##name
+#define MTRACE_SYSTEM(name) merf_##name
 
-#define for_each_mtrace_wp(name, wpp, index)                                   \
+#define for_each_merf_wp(name, wpp, index)                                   \
     for (wpp = &MTRACE_SYSTEM(name).table[0], index = 0;                       \
          index < ARRAY_SIZE(MTRACE_SYSTEM(name).table); ++index, wpp += 1)
 

@@ -27,18 +27,15 @@ static inline int lookup_init(void)
 }
 
 static DEFINE_MERF_SUBSYSTEM(pgtable, 3,
-    MERF_SPECIFIC_INFO(
-        __field(unsigned long, flags)
-    ),
-    MERF_INFO("pgd_alloc"),
-    MERF_INFO("pmd_alloc"),
-    MERF_INFO("__pte_alloc")
-);
+                             MERF_SPECIFIC_INFO(__field(unsigned long, flags)),
+                             MERF_INFO("pgd_alloc"), MERF_INFO("pmd_alloc"),
+                             MERF_INFO("__pte_alloc"));
 
-static int pte_user_ret_handler(struct kretprobe_instance *ri, struct pt_regs *regs)
+static int pte_user_ret_handler(struct kretprobe_instance *ri,
+                                struct pt_regs *regs)
 {
     unsigned long retval = regs_return_value(regs);
-    
+
     if (!retval && (current->pid == target_pid))
         atomic_add(4096, &MERF_SYSTEM(pgtable).table[2].byte_alloc);
 
@@ -47,9 +44,9 @@ static int pte_user_ret_handler(struct kretprobe_instance *ri, struct pt_regs *r
 
 static struct kretprobe kp_pte_user;
 
-#define merf_subsystem_init(name)\
-        __merf_subsystem_init(&MERF_SYSTEM(name).table[0],\
-                ARRAY_SIZE(MERF_SYSTEM(name).table))
+#define merf_subsystem_init(name)                                              \
+    __merf_subsystem_init(&MERF_SYSTEM(name).table[0],                         \
+                          ARRAY_SIZE(MERF_SYSTEM(name).table))
 static int __merf_subsystem_init(struct watchpoint_info *wp, size_t nr)
 {
     int ret;
@@ -60,16 +57,17 @@ static int __merf_subsystem_init(struct watchpoint_info *wp, size_t nr)
     ret = register_kretprobe(&kp_pte_user);
     if (ret < 0) {
         pr_info("ERROR=\"%s\" cannot register %s\n", get_error(ret),
-                                MERF_SYSTEM(pgtable).table[2].func_name);
+                MERF_SYSTEM(pgtable).table[2].func_name);
         return -EINVAL;
     }
-    pr_merf("kretprobe register %s pid=%d\n", MERF_SYSTEM(pgtable).table[2].func_name, target_pid);
+    pr_merf("kretprobe register %s pid=%d\n",
+            MERF_SYSTEM(pgtable).table[2].func_name, target_pid);
     return 0;
 }
 
-#define merf_subsystem_exit(name)\
-        __merf_subsystem_exit(&MERF_SYSTEM(name).table[0],\
-                ARRAY_SIZE(MERF_SYSTEM(name).table))
+#define merf_subsystem_exit(name)                                              \
+    __merf_subsystem_exit(&MERF_SYSTEM(name).table[0],                         \
+                          ARRAY_SIZE(MERF_SYSTEM(name).table))
 static int __merf_subsystem_exit(struct watchpoint_info *wp, size_t nr)
 {
     unregister_kretprobe(&kp_pte_user);
@@ -77,7 +75,6 @@ static int __merf_subsystem_exit(struct watchpoint_info *wp, size_t nr)
     pr_merf("kretprobe unregister\n");
     return 0;
 }
-
 
 static int __init merf_init(void)
 {
@@ -93,9 +90,8 @@ static int __init merf_init(void)
          index < ARRAY_SIZE(MERF_SYSTEM(pgtable).table); ++index, wpp += 1)
         pr_info("plain %s\n", wpp->func_name);
 
-    for_each_merf_wp(pgtable, wpp, index)
-        pr_merf("%s\n", wpp->func_name);
-    
+    for_each_merf_wp(pgtable, wpp, index) pr_merf("%s\n", wpp->func_name);
+
     merf_subsystem_init(pgtable);
 
     return 0;

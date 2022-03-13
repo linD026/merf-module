@@ -1,11 +1,11 @@
-#ifndef __MTRACE_H__
+#ifndef __MERF_H__
 
 struct watchpoint_info {
     const char *func_name;
     atomic_t byte_alloc;
 };
 
-#define MTRACE_INFO(name)                                                      \
+#define MERF_INFO(name)                                                      \
     {                                                                          \
         .func_name = name, .byte_alloc = ATOMIC_INIT(0)                        \
     }
@@ -13,21 +13,21 @@ struct watchpoint_info {
 #undef __field
 #define __field(type, name) type name;
 
-#define MTRACE_SPECIFIC_INFO(info...)                                          \
+#define MERF_SPECIFIC_INFO(info...)                                          \
     struct {                                                                   \
         info                                                                   \
     }
 
-#define DEFINE_MTRACE_SUBSYSTEM(subsystem, nr, specific_info, wpinfo...)       \
+#define DEFINE_MERF_SUBSYSTEM(subsystem, nr, specific_info, wpinfo...)       \
     struct merf_##subsystem {                                                \
         specific_info;                                                         \
         struct watchpoint_info table[nr];                                      \
     } merf_##subsystem = { .table = { wpinfo } }
 
-#define MTRACE_SYSTEM(name) merf_##name
+#define MERF_SYSTEM(name) merf_##name
 
 #define for_each_merf_wp(name, wpp, index)                                   \
-    for (wpp = &MTRACE_SYSTEM(name).table[0], index = 0;                       \
-         index < ARRAY_SIZE(MTRACE_SYSTEM(name).table); ++index, wpp += 1)
+    for (wpp = &MERF_SYSTEM(name).table[0], index = 0;                       \
+         index < ARRAY_SIZE(MERF_SYSTEM(name).table); ++index, wpp += 1)
 
-#endif /* __MTRACE_H__ */
+#endif /* __MERF_H__ */
